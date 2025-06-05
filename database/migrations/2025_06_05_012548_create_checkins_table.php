@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('checkins', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('usuario_id')->constrained('usuarios');
+            $table->foreignId('usuario_id')->constrained('users');
             $table->date('data_checkin');
             $table->enum('humor_financeiro', ['otimo', 'bom', 'neutro', 'ruim', 'pessimo']);
             $table->text('observacoes')->nullable();

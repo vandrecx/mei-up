@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('meta_financeiras', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('usuario_id')->constrained('usuarios');
+            $table->foreignId('usuario_id')->constrained('users');
             $table->string('titulo', 100);
             $table->text('descricao')->nullable();
             $table->decimal('valor_objetivo', 10, 2);

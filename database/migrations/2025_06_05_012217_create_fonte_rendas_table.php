@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('fonte_rendas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('usuario_id')->constrained('usuarios');
+            $table->foreignId('usuario_id')->constrained('users');
             $table->string('descricao', 100);
             $table->decimal('valor', 10, 2);
             $table->enum('tipo', ['fixo', 'variavel']);

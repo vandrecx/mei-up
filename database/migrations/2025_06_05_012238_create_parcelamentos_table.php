@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('parcelamentos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('usuario_id')->constrained('usuarios');
+            $table->foreignId('usuario_id')->constrained('users');
             $table->foreignId('conta_id')->nullable()->constrained('contas');
             $table->string('descricao', 100);
             $table->decimal('valor_total', 10, 2);

@@ -36,7 +36,6 @@ class TransacaoResource extends Resource
                     ->searchable()
                     ->preload()
                     ->required()
-                    ->columnSpan('full')
                     ->default(auth()->id()) 
                     ->disabledOn('edit'), 
 
@@ -46,22 +45,19 @@ class TransacaoResource extends Resource
                     ->placeholder('Nenhuma conta selecionada (opcional)')
                     ->searchable()
                     ->preload()
-                    ->columnSpan('full')
                     ->nullable(),
 
                 Forms\Components\TextInput::make('descricao')
                     ->label('Descrição')
                     ->required()
-                    ->maxLength(200)
-                    ->columnSpan('full'),
+                    ->maxLength(200),
 
                 Forms\Components\TextInput::make('valor')
                     ->label('Valor')
                     ->numeric()
                     ->rules(['numeric', 'min:0.01']) 
                     ->required()
-                    ->prefix('R$') 
-                    ->columnSpan('full'),
+                    ->prefix('R$'),
 
                 Forms\Components\Select::make('tipo')
                     ->label('Tipo')
@@ -69,8 +65,7 @@ class TransacaoResource extends Resource
                         'entrada' => 'Entrada',
                         'saida' => 'Saída',
                     ])
-                    ->required()
-                    ->columnSpan('full'),
+                    ->required(),
 
                 Forms\Components\Select::make('categoria')
                     ->label('Categoria')
@@ -82,8 +77,7 @@ class TransacaoResource extends Resource
                         'trabalho' => 'Trabalho',
                         'outros' => 'Outros',
                     ])
-                    ->required()
-                    ->columnSpan('full'),
+                    ->required(),
 
                 Forms\Components\Select::make('forma_pagamento')
                     ->label('Forma de Pagamento')
@@ -93,15 +87,13 @@ class TransacaoResource extends Resource
                         'debito' => 'Débito',
                         'credito' => 'Crédito',
                     ])
-                    ->required()
-                    ->columnSpan('full'),
+                    ->required(),
 
                 Forms\Components\DatePicker::make('data_transacao')
                     ->label('Data da Transação')
                     ->native(false) 
                     ->required()
-                    ->default(now()) 
-                    ->columnSpan('full'),
+                    ->default(now()) ,
 
                 Forms\Components\Textarea::make('observacoes')
                     ->label('Observações')

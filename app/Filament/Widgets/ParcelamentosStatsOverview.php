@@ -5,25 +5,29 @@ namespace App\Filament\Widgets;
 use App\Models\Parcelamento;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 
 class ParcelamentosStatsOverview extends BaseWidget
 {
     protected function getStats(): array
     {
-        $totalParcelamentos = Parcelamento::count();
-        $parcelamentosAtivos = Parcelamento::ativos()->count();
-        $parcelamentosEmAndamento = Parcelamento::emAndamento()->count();
-        $parcelamentosFinalizados = Parcelamento::finalizados()->count();
+        // Filtra todos os dados pelo usuário autenticado
+        $usuarioId = Auth::id();
         
-        $valorTotalParcelamentos = Parcelamento::ativos()->sum('valor_total');
-        $valorTotalPago = Parcelamento::ativos()->get()->sum(function ($parcelamento) {
+        $totalParcelamentos = Parcelamento::where('usuario_id', $usuarioId)->count();
+        $parcelamentosAtivos = Parcelamento::where('usuario_id', $usuarioId)->ativos()->count();
+        $parcelamentosEmAndamento = Parcelamento::where('usuario_id', $usuarioId)->emAndamento()->count();
+        $parcelamentosFinalizados = Parcelamento::where('usuario_id', $usuarioId)->finalizados()->count();
+        
+        $valorTotalParcelamentos = Parcelamento::where('usuario_id', $usuarioId)->ativos()->sum('valor_total');
+        $valorTotalPago = Parcelamento::where('usuario_id', $usuarioId)->ativos()->get()->sum(function ($parcelamento) {
             return $parcelamento->parcelas_pagas * $parcelamento->valor_parcela;
         });
         $valorRestante = $valorTotalParcelamentos - $valorTotalPago;
 
         return [
             Stat::make('Total de Parcelamentos', $totalParcelamentos)
-                ->description('Todos os parcelamentos')
+                ->description('Todos os seus parcelamentos')
                 ->descriptionIcon('heroicon-m-credit-card')
                 ->color('primary'),
 
@@ -38,12 +42,12 @@ class ParcelamentosStatsOverview extends BaseWidget
                 ->color('warning'),
 
             Stat::make('Valor Total', 'R$ ' . number_format($valorTotalParcelamentos, 2, ',', '.'))
-                ->description('Soma de todos os parcelamentos ativos')
+                ->description('Soma dos seus parcelamentos ativos')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
 
             Stat::make('Valor Pago', 'R$ ' . number_format($valorTotalPago, 2, ',', '.'))
-                ->description('Total já pago')
+                ->description('Total já pago por você')
                 ->descriptionIcon('heroicon-m-check')
                 ->color('primary'),
 

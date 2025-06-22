@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Support\Colors\Color;
+use Illuminate\Support\Facades\Auth;
 
 class MetaFinanceiraResource extends Resource
 {
@@ -42,13 +42,9 @@ class MetaFinanceiraResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informações Básicas')
                     ->schema([
-                        Forms\Components\Select::make('usuario_id')
-                            ->label('Usuário')
-                            ->relationship('usuario', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->columnSpan(1),
+                        Forms\Components\Hidden::make('usuario_id')
+                            ->default(fn () => Auth::id())
+                            ->required(),
 
                         Forms\Components\Select::make('categoria')
                             ->label('Categoria')
@@ -136,11 +132,6 @@ class MetaFinanceiraResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('usuario.name')
-                    ->label('Usuário')
-                    ->sortable()
-                    ->searchable(),
-
                 Tables\Columns\TextColumn::make('titulo')
                     ->label('Título')
                     ->searchable()
@@ -161,20 +152,6 @@ class MetaFinanceiraResource extends Resource
                     ->label('Atual')
                     ->money('BRL')
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('progresso')
-                    ->label('Progresso')
-                    ->getStateUsing(fn (MetaFinanceira $record): string => 
-                        number_format($record->progresso, 1) . '%'
-                    )
-                    ->badge()
-                    ->color(fn (MetaFinanceira $record): string => match (true) {
-                        $record->progresso >= 100 => 'success',
-                        $record->progresso >= 75 => 'primary',
-                        $record->progresso >= 50 => 'warning',
-                        $record->progresso >= 25 => 'info',
-                        default => 'danger',
-                    }),
 
                 Tables\Columns\TextColumn::make('progresso')
                     ->label('Progresso')
@@ -222,7 +199,7 @@ class MetaFinanceiraResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // Tables\Filters\TrashedFilter::make(),
+                Tables\Filters\TrashedFilter::make(),
                 
                 Tables\Filters\SelectFilter::make('usuario_id')
                     ->label('Usuário')
@@ -379,9 +356,6 @@ class MetaFinanceiraResource extends Resource
                             ->label('Título')
                             ->weight(FontWeight::Bold),
 
-                        Infolists\Components\TextEntry::make('usuario.name')
-                            ->label('Usuário'),
-
                         Infolists\Components\TextEntry::make('categoria_label')
                             ->label('Categoria')
                             ->badge()
@@ -448,7 +422,7 @@ class MetaFinanceiraResource extends Resource
                                 $record->data_objetivo->isPast() && $record->status === 'ativo' ? 'danger' : 'gray'
                             ),
 
-                        Infolists\Components\TextEntry::make('dias_decorridosk')
+                        Infolists\Components\TextEntry::make('dias_decorridos')
                             ->label('Dias Decorridos')
                             ->suffix(' dias'),
 
@@ -490,30 +464,38 @@ class MetaFinanceiraResource extends Resource
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
-            ]);
+            ])
+            ->where('usuario_id', Auth::id());
     }
 
     public static function getGlobalSearchEloquentQuery(): Builder
     {
-        return parent::getGlobalSearchEloquentQuery()->with(['usuario']);
+        return parent::getGlobalSearchEloquentQuery()
+            ->where('usuario_id', Auth::id());
     }
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['titulo', 'descricao', 'usuario.name'];
+        return ['titulo', 'descricao'];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
     {
         $details = [];
 
-        if ($record->usuario) {
-            $details['Usuário'] = $record->usuario->name;
-        }
-
         $details['Categoria'] = $record->categoria_label;
         $details['Progresso'] = number_format($record->progresso, 1) . '%';
 
         return $details;
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::where('usuario_id', Auth::id())->where('status', 'ativo')->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'primary';
     }
 }

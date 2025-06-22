@@ -16,8 +16,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Hidden;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
+use Illuminate\Support\Facades\Auth;
 
 class ContaResource extends Resource
 {
@@ -37,6 +39,10 @@ class ContaResource extends Resource
     {
         return $form
             ->schema([
+                Hidden::make('user_id')
+                    ->default(fn () => Auth::id())
+                    ->required(),
+
                 Forms\Components\Section::make('Informações da Conta')
                     ->schema([
                         Forms\Components\Grid::make(2)
@@ -229,11 +235,12 @@ class ContaResource extends Resource
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
-            ]);
+            ])
+            ->where('user_id', Auth::id());
     }
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::count();
+        return static::getModel()::where('user_id', Auth::id())->count();
     }
 }

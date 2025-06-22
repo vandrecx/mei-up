@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables\Enums\FiltersLayout;
+use Illuminate\Support\Facades\Auth;
 
 class MovimentacaoMetaResource extends Resource
 {
@@ -43,7 +44,11 @@ class MovimentacaoMetaResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('meta_id')
                             ->label('Meta Financeira')
-                            ->relationship('meta', 'titulo')
+                            ->relationship(
+                                'meta', 
+                                'titulo',
+                                fn (Builder $query) => $query->where('usuario_id', Auth::id())
+                            )
                             ->searchable()
                             ->preload()
                             ->required()
@@ -53,7 +58,11 @@ class MovimentacaoMetaResource extends Resource
 
                         Forms\Components\Select::make('transacao_id')
                             ->label('Transação Relacionada')
-                            ->relationship('transacao', 'descricao')
+                            ->relationship(
+                                'transacao', 
+                                'descricao',
+                                fn (Builder $query) => $query->where('usuario_id', Auth::id())
+                            )
                             ->searchable()
                             ->preload()
                             ->nullable()
@@ -84,7 +93,7 @@ class MovimentacaoMetaResource extends Resource
                                 $tipo = $get('tipo');
                                 
                                 if ($tipo === 'retirada' && $metaId) {
-                                    $meta = MetaFinanceira::find($metaId);
+                                    $meta = MetaFinanceira::where('usuario_id', Auth::id())->find($metaId);
                                     return $meta ? $meta->valor_atual : null;
                                 }
                                 
@@ -95,7 +104,7 @@ class MovimentacaoMetaResource extends Resource
                                 $tipo = $get('tipo');
                                 
                                 if ($tipo === 'retirada' && $metaId) {
-                                    $meta = MetaFinanceira::find($metaId);
+                                    $meta = MetaFinanceira::where('usuario_id', Auth::id())->find($metaId);
                                     if ($meta) {
                                         return "Valor disponível para retirada: R$ " . number_format($meta->valor_atual, 2, ',', '.');
                                     }
@@ -173,7 +182,7 @@ class MovimentacaoMetaResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // Tables\Filters\TrashedFilter::make(),
+                Tables\Filters\TrashedFilter::make(),
                 
                 Tables\Filters\SelectFilter::make('meta_id')
                     ->label('Meta Financeira')
@@ -189,13 +198,17 @@ class MovimentacaoMetaResource extends Resource
                     ])
                     ->native(false),
 
+                Tables\Filters\Filter::make('valor_alto')
+                    ->label('Valores > R$ 1.000')
+                    ->query(fn (Builder $query): Builder => $query->where('valor', '>', 1000)),
+
                 Tables\Filters\Filter::make('data_movimentacao')
                     ->form([
                         Forms\Components\DatePicker::make('data_de')
                             ->label('Data de'),
                         Forms\Components\DatePicker::make('data_ate')
                             ->label('Data até'),
-                    ])->columnSpan(2)
+                    ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
                             ->when(
@@ -206,11 +219,7 @@ class MovimentacaoMetaResource extends Resource
                                 $data['data_ate'],
                                 fn (Builder $query, $date): Builder => $query->whereDate('data_movimentacao', '<=', $date),
                             );
-                    })->columns(2), 
-                    
-                    Tables\Filters\Filter::make('valor_alto')
-                        ->label('Valores > R$ 1.000')
-                        ->query(fn (Builder $query): Builder => $query->where('valor', '>', 1000)),
+                    }),
             ], layout: FiltersLayout::AboveContent)
             ->filtersFormColumns(3)
             ->actions([
@@ -322,17 +331,36 @@ class MovimentacaoMetaResource extends Resource
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
-            ]);
+            ])
+            ->whereHas('meta', function (Builder $query) {
+                $query->where('usuario_id', Auth::id());
+            });
     }
 
     public static function getGlobalSearchEloquentQuery(): Builder
     {
-        return parent::getGlobalSearchEloquentQuery()->with(['meta', 'transacao']);
+        return parent::getGlobalSearchEloquentQuery()
+            ->with(['meta', 'transacao'])
+            ->whereHas('meta', function (Builder $query) {
+                $query->where('usuario_id', Auth::id());
+            });
     }
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['observacoes', 'meta.titulo', 'transacao.descricao'];
+        return ['observacoes', 'meta.titulo'];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::whereHas('meta', function (Builder $query) {
+            $query->where('usuario_id', Auth::id());
+        })->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'info';
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables\Enums\FiltersLayout;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class ParcelamentoResource extends Resource
 {
@@ -41,17 +42,17 @@ class ParcelamentoResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informações Básicas')
                     ->schema([
-                        Forms\Components\Select::make('usuario_id')
-                            ->label('Usuário')
-                            ->relationship('usuario', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->columnSpan(1),
+                        Forms\Components\Hidden::make('usuario_id')
+                            ->default(fn () => Auth::id())
+                            ->required(),
 
                         Forms\Components\Select::make('conta_id')
                             ->label('Conta')
-                            ->relationship('conta', 'nome')
+                            ->relationship(
+                                'conta', 
+                                'nome',
+                                fn (Builder $query) => $query->where('user_id', Auth::id())->where('ativo', true)
+                            )
                             ->searchable()
                             ->preload()
                             ->nullable()
@@ -61,6 +62,7 @@ class ParcelamentoResource extends Resource
                             ->label('Descrição')
                             ->required()
                             ->maxLength(100)
+                            ->placeholder('Ex: iPhone 15, Móveis da sala, Curso de inglês')
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
@@ -107,14 +109,16 @@ class ParcelamentoResource extends Resource
                             ->numeric()
                             ->prefix('R$')
                             ->step(0.01)
-                            ->readOnly(),
+                            ->readOnly()
+                            ->helperText('Calculado automaticamente'),
 
                         Forms\Components\TextInput::make('parcelas_pagas')
                             ->label('Parcelas Pagas')
                             ->required()
                             ->numeric()
                             ->minValue(0)
-                            ->default(0),
+                            ->default(0)
+                            ->helperText('Quantas parcelas já foram pagas'),
                     ])
                     ->columns(2),
 
@@ -131,6 +135,7 @@ class ParcelamentoResource extends Resource
                             ->numeric()
                             ->minValue(1)
                             ->maxValue(31)
+                            ->default(10)
                             ->helperText('Dia do mês para vencimento das parcelas'),
 
                         Forms\Components\Toggle::make('ativo')
@@ -151,11 +156,6 @@ class ParcelamentoResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('usuario.name')
-                    ->label('Usuário')
-                    ->sortable()
-                    ->searchable(),
-
                 Tables\Columns\TextColumn::make('descricao')
                     ->label('Descrição')
                     ->searchable()
@@ -165,7 +165,8 @@ class ParcelamentoResource extends Resource
                 Tables\Columns\TextColumn::make('valor_total')
                     ->label('Valor Total')
                     ->money('BRL')
-                    ->sortable(),
+                    ->sortable()
+                    ->weight(FontWeight::Bold),
 
                 Tables\Columns\TextColumn::make('progresso')
                     ->label('Progresso')
@@ -188,6 +189,12 @@ class ParcelamentoResource extends Resource
                         'Inativo' => 'danger',
                         default => 'gray',
                     }),
+
+                Tables\Columns\TextColumn::make('conta.nome')
+                    ->label('Conta')
+                    ->searchable()
+                    ->placeholder('Sem conta')
+                    ->toggleable(),
 
                 Tables\Columns\IconColumn::make('ativo')
                     ->label('Ativo')
@@ -217,9 +224,13 @@ class ParcelamentoResource extends Resource
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
                 
-                Tables\Filters\SelectFilter::make('usuario_id')
-                    ->label('Usuário')
-                    ->relationship('usuario', 'name')
+                Tables\Filters\SelectFilter::make('conta_id')
+                    ->label('Conta')
+                    ->relationship(
+                        'conta', 
+                        'nome',
+                        fn (Builder $query) => $query->where('user_id', Auth::id())
+                    )
                     ->searchable()
                     ->preload(),
                 
@@ -260,11 +271,38 @@ class ParcelamentoResource extends Resource
             ], layout: FiltersLayout::AboveContent)
             ->filtersFormColumns(4)
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-                Tables\Actions\ForceDeleteAction::make(),
-                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\EditAction::make(),
+                    
+                    Tables\Actions\Action::make('pagar_parcela')
+                        ->label('Pagar Parcela')
+                        ->icon('heroicon-o-plus-circle')
+                        ->color('success')
+                        ->visible(fn (Parcelamento $record): bool => 
+                            $record->ativo && $record->parcelas_pagas < $record->total_parcelas
+                        )
+                        ->action(function (Parcelamento $record): void {
+                            $record->update([
+                                'parcelas_pagas' => $record->parcelas_pagas + 1
+                            ]);
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Parcela paga com sucesso!')
+                                ->body("Progresso: {$record->fresh()->parcelas_pagas}/{$record->total_parcelas}")
+                                ->success()
+                                ->send();
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Pagar Parcela')
+                        ->modalDescription(fn (Parcelamento $record): string => 
+                            "Confirmar pagamento da parcela? Progresso atual: {$record->parcelas_pagas}/{$record->total_parcelas}"
+                        ),
+                    
+                    Tables\Actions\DeleteAction::make(),
+                    Tables\Actions\ForceDeleteAction::make(),
+                    Tables\Actions\RestoreAction::make(),
+                ]),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -287,9 +325,6 @@ class ParcelamentoResource extends Resource
                         Infolists\Components\TextEntry::make('id')
                             ->label('ID'),
 
-                        Infolists\Components\TextEntry::make('usuario.name')
-                            ->label('Usuário'),
-
                         Infolists\Components\TextEntry::make('conta.nome')
                             ->label('Conta')
                             ->placeholder('Nenhuma conta vinculada'),
@@ -298,7 +333,7 @@ class ParcelamentoResource extends Resource
                             ->label('Descrição')
                             ->columnSpanFull(),
                     ])
-                    ->columns(3),
+                    ->columns(2),
 
                 Infolists\Components\Section::make('Valores e Parcelas')
                     ->schema([
@@ -398,31 +433,42 @@ class ParcelamentoResource extends Resource
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
-            ]);
+            ])
+            ->where('usuario_id', Auth::id());
     }
 
     public static function getGlobalSearchEloquentQuery(): Builder
     {
-        return parent::getGlobalSearchEloquentQuery()->with(['usuario', 'conta']);
+        return parent::getGlobalSearchEloquentQuery()
+            ->where('usuario_id', Auth::id());
     }
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['descricao', 'usuario.name', 'conta.nome'];
+        return ['descricao', 'conta.nome'];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
     {
         $details = [];
 
-        if ($record->usuario) {
-            $details['Usuário'] = $record->usuario->name;
-        }
-
         if ($record->conta) {
             $details['Conta'] = $record->conta->nome;
         }
 
+        $details['Progresso'] = "{$record->parcelas_pagas}/{$record->total_parcelas}";
+        $details['Valor'] = 'R$ ' . number_format($record->valor_total, 2, ',', '.');
+
         return $details;
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::where('usuario_id', Auth::id())->where('ativo', true)->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 }

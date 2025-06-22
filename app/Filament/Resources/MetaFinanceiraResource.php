@@ -222,7 +222,7 @@ class MetaFinanceiraResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\TrashedFilter::make(),
+                // Tables\Filters\TrashedFilter::make(),
                 
                 Tables\Filters\SelectFilter::make('usuario_id')
                     ->label('Usuário')
@@ -468,12 +468,12 @@ class MetaFinanceiraResource extends Resource
             ]);
     }
 
-    // public static function getRelations(): array
-    // {
-    //     return [
-    //         MovimentacoesRelationManager::class,
-    //     ];
-    // }
+    public static function getRelations(): array
+    {
+        return [
+            MovimentacoesRelationManager::class,
+        ];
+    }
 
     public static function getPages(): array
     {

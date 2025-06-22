@@ -6,163 +6,143 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class MetaFinanceira extends Model
+class MovimentacaoMeta extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'meta_financeiras';
+    protected $table = 'movimentacao_metas';
 
     protected $fillable = [
-        'usuario_id',
-        'titulo',
-        'descricao',
-        'valor_objetivo',
-        'valor_atual',
-        'data_inicio',
-        'data_objetivo',
-        'categoria',
-        'status',
+        'meta_id',
+        'transacao_id',
+        'valor',
+        'tipo',
+        'data_movimentacao',
+        'observacoes',
     ];
 
     protected $casts = [
-        'valor_objetivo' => 'decimal:2',
-        'valor_atual' => 'decimal:2',
-        'data_inicio' => 'date',
-        'data_objetivo' => 'date',
+        'valor' => 'decimal:2',
+        'data_movimentacao' => 'date',
         'deleted_at' => 'datetime',
     ];
 
     // Relacionamentos
-    public function usuario(): BelongsTo
+    public function meta(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'usuario_id');
+        return $this->belongsTo(MetaFinanceira::class, 'meta_id');
     }
 
-    public function movimentacoes(): HasMany
+    public function transacao(): BelongsTo
     {
-        return $this->hasMany(MovimentacaoMeta::class, 'meta_id');
+        return $this->belongsTo(Transacao::class, 'transacao_id');
     }
 
     // Accessors
-    public function getProgressoAttribute(): float
+    public function getTipoBadgeColorAttribute(): string
     {
-        if ($this->valor_objetivo <= 0) {
-            return 0;
-        }
-
-        return round(($this->valor_atual / $this->valor_objetivo) * 100, 2);
-    }
-
-    public function getProgressoStatusAttribute(): string
-    {
-        $progresso = $this->progresso;
-
-        return match (true) {
-            $progresso >= 100 => 'Concluída',
-            $progresso >= 75 => 'Quase lá',
-            $progresso >= 50 => 'No meio do caminho',
-            $progresso >= 25 => 'Progredindo',
-            default => 'Começando',
-        };
-    }
-
-    public function getValorRestanteAttribute(): float
-    {
-        return max(0, $this->valor_objetivo - $this->valor_atual);
-    }
-
-    public function getDiasRestantesAttribute(): int
-    {
-        if ($this->data_objetivo->isPast()) {
-            return 0;
-        }
-
-        return now()->diffInDays($this->data_objetivo);
-    }
-
-    public function getDiasDecorridosAttribute(): int
-    {
-        return $this->data_inicio->diffInDays(now());
-    }
-
-    public function getStatusBadgeColorAttribute(): string
-    {
-        return match ($this->status) {
-            'ativo' => 'success',
-            'pausado' => 'warning',
-            'concluido' => 'primary',
-            'cancelado' => 'danger',
+        return match ($this->tipo) {
+            'deposito' => 'success',
+            'retirada' => 'danger',
             default => 'gray',
         };
     }
 
-    public function getCategoriaBadgeColorAttribute(): string
+    public function getTipoLabelAttribute(): string
     {
-        return match ($this->categoria) {
-            'emergencia' => 'danger',
-            'investimento' => 'success',
-            'compra' => 'primary',
-            'viagem' => 'warning',
-            'outros' => 'gray',
-            default => 'gray',
-        };
-    }
-
-    public function getCategoriaLabelAttribute(): string
-    {
-        return match ($this->categoria) {
-            'emergencia' => 'Emergência',
-            'investimento' => 'Investimento',
-            'compra' => 'Compra',
-            'viagem' => 'Viagem',
-            'outros' => 'Outros',
+        return match ($this->tipo) {
+            'deposito' => 'Depósito',
+            'retirada' => 'Retirada',
             default => 'N/A',
         };
     }
 
-    public function getStatusLabelAttribute(): string
+    public function getValorFormatadoAttribute(): string
     {
-        return match ($this->status) {
-            'ativo' => 'Ativo',
-            'pausado' => 'Pausado',
-            'concluido' => 'Concluído',
-            'cancelado' => 'Cancelado',
-            default => 'N/A',
-        };
+        $sinal = $this->tipo === 'deposito' ? '+' : '-';
+        return $sinal . ' R$ ' . number_format($this->valor, 2, ',', '.');
     }
 
     // Scopes
-    public function scopeAtivas($query)
+    public function scopeDepositos($query)
     {
-        return $query->where('status', 'ativo');
+        return $query->where('tipo', 'deposito');
     }
 
-    public function scopePorCategoria($query, $categoria)
+    public function scopeRetiradas($query)
     {
-        return $query->where('categoria', $categoria);
+        return $query->where('tipo', 'retirada');
     }
 
-    public function scopePorUsuario($query, $usuarioId)
+    public function scopePorMeta($query, $metaId)
     {
-        return $query->where('usuario_id', $usuarioId);
+        return $query->where('meta_id', $metaId);
     }
 
-    public function scopeConcluidas($query)
+    public function scopePorPeriodo($query, $dataInicio, $dataFim)
     {
-        return $query->where('status', 'concluido');
+        return $query->whereBetween('data_movimentacao', [$dataInicio, $dataFim]);
     }
 
-    public function scopeVencendo($query, $dias = 30)
+    // Boot method para atualizar valor_atual da meta automaticamente
+    protected static function boot()
     {
-        return $query->where('data_objetivo', '<=', now()->addDays($dias))
-                    ->where('status', 'ativo');
+        parent::boot();
+
+        static::created(function ($movimentacao) {
+            $movimentacao->atualizarValorMeta('created');
+        });
+
+        static::updated(function ($movimentacao) {
+            $movimentacao->atualizarValorMeta('updated');
+        });
+
+        static::deleted(function ($movimentacao) {
+            $movimentacao->atualizarValorMeta('deleted');
+        });
+
+        static::restored(function ($movimentacao) {
+            $movimentacao->atualizarValorMeta('restored');
+        });
     }
 
-    public function scopeVencidas($query)
+    // Método para atualizar o valor atual da meta
+    private function atualizarValorMeta(string $acao = 'created'): void
     {
-        return $query->where('data_objetivo', '<', now())
-                    ->where('status', 'ativo');
+        $meta = $this->meta;
+        
+        if ($meta) {
+            // Para a primeira movimentação, preserva o valor_atual como base
+            $totalMovimentacoes = $meta->movimentacoes()->count();
+            
+            if ($acao === 'created' && $totalMovimentacoes === 1) {
+                // Primeira movimentação: soma/subtrai do valor atual existente
+                if ($this->tipo === 'deposito') {
+                    $novoValor = $meta->valor_atual + $this->valor;
+                } else {
+                    $novoValor = $meta->valor_atual - $this->valor;
+                }
+            } else {
+                // Recalcula baseado no valor sem esta movimentação + todas as movimentações
+                $valorBase = $meta->valor_atual;
+                
+                // Remove o efeito da movimentação atual do valor base
+                if ($acao === 'updated' || $acao === 'deleted') {
+                    if ($this->tipo === 'deposito') {
+                        $valorBase -= $this->valor;
+                    } else {
+                        $valorBase += $this->valor;
+                    }
+                }
+                
+                $totalDepositos = $meta->movimentacoes()->depositos()->sum('valor');
+                $totalRetiradas = $meta->movimentacoes()->retiradas()->sum('valor');
+                
+                $novoValor = $valorBase + $totalDepositos - $totalRetiradas;
+            }
+            
+            $meta->update(['valor_atual' => max(0, $novoValor)]);
+        }
     }
 }

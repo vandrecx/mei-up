@@ -198,17 +198,15 @@ class MovimentacaoMetaResource extends Resource
                     ])
                     ->native(false),
 
-                Tables\Filters\Filter::make('valor_alto')
-                    ->label('Valores > R$ 1.000')
-                    ->query(fn (Builder $query): Builder => $query->where('valor', '>', 1000)),
-
                 Tables\Filters\Filter::make('data_movimentacao')
+                    ->columnSpanFull() 
                     ->form([
                         Forms\Components\DatePicker::make('data_de')
                             ->label('Data de'),
                         Forms\Components\DatePicker::make('data_ate')
                             ->label('Data até'),
                     ])
+                    ->columns(2) 
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
                             ->when(
@@ -220,6 +218,11 @@ class MovimentacaoMetaResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('data_movimentacao', '<=', $date),
                             );
                     }),
+
+                    Tables\Filters\Filter::make('valor_alto')
+                        ->label('Valores > R$ 1.000')
+                        ->query(fn (Builder $query): Builder => $query->where('valor', '>', 1000)),
+
             ], layout: FiltersLayout::AboveContent)
             ->filtersFormColumns(3)
             ->actions([

@@ -26,6 +26,7 @@ class CheckinResource extends Resource
     protected static ?string $model = Checkin::class;
     protected static ?string $navigationIcon = 'heroicon-o-check-circle';
     protected static ?string $navigationGroup = 'Relatórios';
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Form $form): Form
     {

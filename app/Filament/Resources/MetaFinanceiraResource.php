@@ -248,86 +248,86 @@ class MetaFinanceiraResource extends Resource
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                     
-                    Tables\Actions\Action::make('adicionar_valor')
-                        ->label('Adicionar Valor')
-                        ->icon('heroicon-o-plus-circle')
-                        ->color('success')
-                        ->visible(fn (MetaFinanceira $record): bool => 
-                            in_array($record->status, ['ativo', 'pausado'])
-                        )
-                        ->form([
-                            Forms\Components\TextInput::make('valor')
-                                ->label('Valor')
-                                ->required()
-                                ->numeric()
-                                ->prefix('R$')
-                                ->step(0.01)
-                                ->minValue(0.01),
+                    // Tables\Actions\Action::make('adicionar_valor')
+                    //     ->label('Adicionar Valor')
+                    //     ->icon('heroicon-o-plus-circle')
+                    //     ->color('success')
+                    //     ->visible(fn (MetaFinanceira $record): bool => 
+                    //         in_array($record->status, ['ativo', 'pausado'])
+                    //     )
+                    //     ->form([
+                    //         Forms\Components\TextInput::make('valor')
+                    //             ->label('Valor')
+                    //             ->required()
+                    //             ->numeric()
+                    //             ->prefix('R$')
+                    //             ->step(0.01)
+                    //             ->minValue(0.01),
                             
-                            Forms\Components\DatePicker::make('data_movimentacao')
-                                ->label('Data da Movimentação')
-                                ->required()
-                                ->default(now())
-                                ->maxDate(now()),
+                    //         Forms\Components\DatePicker::make('data_movimentacao')
+                    //             ->label('Data da Movimentação')
+                    //             ->required()
+                    //             ->default(now())
+                    //             ->maxDate(now()),
                             
-                            Forms\Components\Textarea::make('observacoes')
-                                ->label('Observações')
-                                ->rows(2),
-                        ])
-                        ->action(function (MetaFinanceira $record, array $data): void {
-                            $record->movimentacoes()->create([
-                                'valor' => $data['valor'],
-                                'tipo' => 'deposito',
-                                'data_movimentacao' => $data['data_movimentacao'],
-                                'observacoes' => $data['observacoes'] ?? null,
-                            ]);
+                    //         Forms\Components\Textarea::make('observacoes')
+                    //             ->label('Observações')
+                    //             ->rows(2),
+                    //     ])
+                    //     ->action(function (MetaFinanceira $record, array $data): void {
+                    //         $record->movimentacoes()->create([
+                    //             'valor' => $data['valor'],
+                    //             'tipo' => 'deposito',
+                    //             'data_movimentacao' => $data['data_movimentacao'],
+                    //             'observacoes' => $data['observacoes'] ?? null,
+                    //         ]);
                             
-                            \Filament\Notifications\Notification::make()
-                                ->title('Valor adicionado com sucesso!')
-                                ->success()
-                                ->send();
-                        }),
+                    //         \Filament\Notifications\Notification::make()
+                    //             ->title('Valor adicionado com sucesso!')
+                    //             ->success()
+                    //             ->send();
+                    //     }),
                     
-                    Tables\Actions\Action::make('retirar_valor')
-                        ->label('Retirar Valor')
-                        ->icon('heroicon-o-minus-circle')
-                        ->color('danger')
-                        ->visible(fn (MetaFinanceira $record): bool => 
-                            in_array($record->status, ['ativo', 'pausado']) && $record->valor_atual > 0
-                        )
-                        ->form([
-                            Forms\Components\TextInput::make('valor')
-                                ->label('Valor')
-                                ->required()
-                                ->numeric()
-                                ->prefix('R$')
-                                ->step(0.01)
-                                ->minValue(0.01)
-                                ->maxValue(fn (MetaFinanceira $record): float => $record->valor_atual),
+                    // Tables\Actions\Action::make('retirar_valor')
+                    //     ->label('Retirar Valor')
+                    //     ->icon('heroicon-o-minus-circle')
+                    //     ->color('danger')
+                    //     ->visible(fn (MetaFinanceira $record): bool => 
+                    //         in_array($record->status, ['ativo', 'pausado']) && $record->valor_atual > 0
+                    //     )
+                    //     ->form([
+                    //         Forms\Components\TextInput::make('valor')
+                    //             ->label('Valor')
+                    //             ->required()
+                    //             ->numeric()
+                    //             ->prefix('R$')
+                    //             ->step(0.01)
+                    //             ->minValue(0.01)
+                    //             ->maxValue(fn (MetaFinanceira $record): float => $record->valor_atual),
                             
-                            Forms\Components\DatePicker::make('data_movimentacao')
-                                ->label('Data da Movimentação')
-                                ->required()
-                                ->default(now())
-                                ->maxDate(now()),
+                    //         Forms\Components\DatePicker::make('data_movimentacao')
+                    //             ->label('Data da Movimentação')
+                    //             ->required()
+                    //             ->default(now())
+                    //             ->maxDate(now()),
                             
-                            Forms\Components\Textarea::make('observacoes')
-                                ->label('Observações')
-                                ->rows(2),
-                        ])
-                        ->action(function (MetaFinanceira $record, array $data): void {
-                            $record->movimentacoes()->create([
-                                'valor' => $data['valor'],
-                                'tipo' => 'retirada',
-                                'data_movimentacao' => $data['data_movimentacao'],
-                                'observacoes' => $data['observacoes'] ?? null,
-                            ]);
+                    //         Forms\Components\Textarea::make('observacoes')
+                    //             ->label('Observações')
+                    //             ->rows(2),
+                    //     ])
+                    //     ->action(function (MetaFinanceira $record, array $data): void {
+                    //         $record->movimentacoes()->create([
+                    //             'valor' => $data['valor'],
+                    //             'tipo' => 'retirada',
+                    //             'data_movimentacao' => $data['data_movimentacao'],
+                    //             'observacoes' => $data['observacoes'] ?? null,
+                    //         ]);
                             
-                            \Filament\Notifications\Notification::make()
-                                ->title('Valor retirado com sucesso!')
-                                ->success()
-                                ->send();
-                        }),
+                    //         \Filament\Notifications\Notification::make()
+                    //             ->title('Valor retirado com sucesso!')
+                    //             ->success()
+                    //             ->send();
+                    //     }),
 
                     Tables\Actions\DeleteAction::make(),
                     Tables\Actions\ForceDeleteAction::make(),
